@@ -16,6 +16,8 @@ import time
 from pathlib import Path
 
 from .copywriting import load_templates, render
+from .dingtalk import (DingTalkError, get_access_token, get_userid_by_mobile,
+                       send_work_notification, upload_media)
 from .poster import make_poster
 from .roster import TYPE_FILENAME, load_roster, match_date
 from .wecom import (WeComError, get_token, send_app_message, send_robot,
@@ -79,13 +81,37 @@ def main(argv: list[str] | None = None) -> int:
     done = set() if args.force else sent_keys(log_dir, day)
 
     wecom_cfg = cfg.get("wecom", {})
+    dt_cfg = cfg.get("dingtalk", {})
     mode = wecom_cfg.get("mode", "app")
     if mode == "robot":
         dry_run = args.dry_run or not wecom_cfg.get("webhook")
+    elif mode == "dingtalk":
+        dry_run = args.dry_run or not dt_cfg.get("appkey") or "YOUR_" in str(dt_cfg.get("appkey", ""))
     else:
         dry_run = args.dry_run or not wecom_cfg.get("corpid") or "YOUR_" in str(wecom_cfg.get("corpid", ""))
     if not dry_run and mode == "app":
         token = get_token(wecom_cfg["corpid"], wecom_cfg["secret"])
+
+    def push_once(text: str, out_path: Path) -> None:
+        """按配置的三种通道推送一条（文案 + 海报）。"""
+        if mode == "robot":
+            send_robot(wecom_cfg["webhook"], text=text, image_path=out_path)
+        elif mode == "dingtalk":
+            token = get_access_token(dt_cfg["appkey"], dt_cfg["appsecret"])
+            userid = dt_cfg.get("touser_userid")
+            if not userid and dt_cfg.get("to_mobile"):
+                userid = get_userid_by_mobile(token, dt_cfg["to_mobile"])
+            if not userid:
+                raise DingTalkError("缺少收件人配置：touser_userid 或 to_mobile")
+            media_id = upload_media(token, out_path, out_path.name)
+            send_work_notification(token, int(dt_cfg["agentid"]), userid, text=text)
+            send_work_notification(token, int(dt_cfg["agentid"]), userid, media_id=media_id)
+        else:
+            media_id = upload_image(token, out_path, out_path.name)
+            send_app_message(token, int(wecom_cfg["agentid"]),
+                             wecom_cfg["touser"], text=text)
+            send_app_message(token, int(wecom_cfg["agentid"]),
+                             wecom_cfg["touser"], media_id=media_id)
 
     failures = 0
     for ev in events:
@@ -109,26 +135,12 @@ def main(argv: list[str] | None = None) -> int:
         else:
             status, err = "ok", ""
             try:
-                if wecom_cfg.get("mode") == "robot":
-                    send_robot(wecom_cfg["webhook"], text=text, image_path=out_path)
-                else:
-                    media_id = upload_image(token, out_path, out_path.name)
-                    send_app_message(token, int(wecom_cfg["agentid"]),
-                                     wecom_cfg["touser"], text=text)
-                    send_app_message(token, int(wecom_cfg["agentid"]),
-                                     wecom_cfg["touser"], media_id=media_id)
-            except WeComError as exc:  # 重试一次
+                push_once(text, out_path)
+            except (WeComError, DingTalkError) as exc:  # 重试一次
                 time.sleep(3)
                 try:
-                    if wecom_cfg.get("mode") == "robot":
-                        send_robot(wecom_cfg["webhook"], text=text, image_path=out_path)
-                    else:
-                        media_id = upload_image(token, out_path, out_path.name)
-                        send_app_message(token, int(wecom_cfg["agentid"]),
-                                         wecom_cfg["touser"], text=text)
-                        send_app_message(token, int(wecom_cfg["agentid"]),
-                                         wecom_cfg["touser"], media_id=media_id)
-                except WeComError as exc2:
+                    push_once(text, out_path)
+                except (WeComError, DingTalkError) as exc2:
                     status, err = "fail", str(exc2)
                     failures += 1
             log_line(log_dir, {"ts": dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

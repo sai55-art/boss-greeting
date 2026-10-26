@@ -7,6 +7,13 @@
     "touser": "ZhangSan",
     "webhook": ""
   },
+  "dingtalk": {
+    "appkey": "YOUR_APP_KEY",
+    "appsecret": "YOUR_APP_SECRET",
+    "agentid": 0,
+    "to_mobile": "",
+    "touser_userid": ""
+  },
   "roster_path": "data/关怀台账.xlsx",
   "output_dir": "output",
   "log_dir": "logs",
