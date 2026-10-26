@@ -1,0 +1,5 @@
+pandas>=2.0
+openpyxl>=3.1
+Pillow>=10.0
+# 说明：为避免额外依赖，配置与模板使用 JSON，标准库 unittest 做测试；
+# 上服务器时仅需 pandas / openpyxl / Pillow。

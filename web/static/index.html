@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>关怀助手 · boss-greeting</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="brand-mark">关</div>
+      <div class="brand-name">关怀助手<span>boss-greeting</span></div>
+    </div>
+    <nav>
+      <a href="#dashboard" class="active" data-page="dashboard"><i>◈</i>仪表盘</a>
+      <a href="#roster" data-page="roster"><i>▤</i>台账管理</a>
+      <a href="#templates" data-page="templates"><i>✦</i>模板与海报</a>
+      <a href="#config" data-page="config"><i>⚙</i>推送配置</a>
+      <a href="#logs" data-page="logs"><i>☰</i>发送记录</a>
+      <a href="#run" data-page="run"><i>▷</i>手动运行</a>
+    </nav>
+    <div class="side-foot">产业中天 · 内部工具</div>
+  </aside>
+
+  <main class="main">
+    <!-- 仪表盘 -->
+    <section id="page-dashboard" class="page active">
+      <header class="page-head"><h1>仪表盘</h1><p class="sub" id="dash-date"></p></header>
+      <div class="stat-row">
+        <div class="stat"><b id="stat-birthday">–</b><span>生日（台账）</span></div>
+        <div class="stat"><b id="stat-founding">–</b><span>成立周年（台账）</span></div>
+        <div class="stat"><b id="stat-entry">–</b><span>入园周年（台账）</span></div>
+        <div class="stat"><b id="stat-channel">–</b><span>推送通道</span></div>
+      </div>
+      <div class="card">
+        <h2>今日命中 <em id="dash-count"></em></h2>
+        <div id="dash-events"></div>
+      </div>
+      <div class="card">
+        <h2>最近发送</h2>
+        <div id="dash-recent"></div>
+      </div>
+    </section>
+
+    <!-- 台账 -->
+    <section id="page-roster" class="page">
+      <header class="page-head"><h1>台账管理</h1>
+        <p class="sub">数据源 data/关怀台账.xlsx，修改即时保存</p></header>
+      <div class="toolbar">
+        <input id="roster-q" class="input" placeholder="搜索姓名 / 企业 / 项目…">
+        <button class="btn" id="roster-add">＋ 新增</button>
+        <button class="btn ghost" id="roster-import">导入 Excel</button>
+        <a class="btn ghost" href="/api/roster/export">导出 Excel</a>
+      </div>
+      <div class="card table-wrap">
+        <table class="table" id="roster-table">
+          <thead><tr><th>#</th><th>类别</th><th>企业名称</th><th>所属项目</th><th>姓名</th><th>职务</th><th>性别</th><th>节点日期</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 模板与海报 -->
+    <section id="page-templates" class="page">
+      <header class="page-head"><h1>模板与海报</h1>
+        <p class="sub">占位符：{姓名} {称谓} {项目落款} {周年数}；英文模板用 {称谓_en}</p></header>
+      <div class="tpl-grid" id="tpl-grid"></div>
+      <div class="card">
+        <h2>海报背景图</h2>
+        <p class="hint">上传 png/jpg，自动缩放至 1242×2760。未上传的节点类型沿用已有底图。</p>
+        <div class="bg-grid" id="bg-grid"></div>
+      </div>
+      <div class="actions"><button class="btn solid" id="tpl-save">保存模板</button></div>
+    </section>
+
+    <!-- 推送配置 -->
+    <section id="page-config" class="page">
+      <header class="page-head"><h1>推送配置</h1>
+        <p class="sub">config.json 在线编辑，密钥不入版本库</p></header>
+      <div class="card">
+        <h2>企业微信</h2>
+        <div class="form-grid">
+          <label>通道模式<select id="cfg-mode" class="input"><option value="robot">群机器人 webhook</option><option value="app">企微应用单发</option></select></label>
+          <label>Webhook 地址<input id="cfg-webhook" class="input wide" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=…"></label>
+          <label>Corpid<input id="cfg-corpid" class="input"></label>
+          <label>Secret<input id="cfg-secret" class="input" type="password"></label>
+          <label>Agentid<input id="cfg-agentid" class="input"></label>
+          <label>收件人账号（touser）<input id="cfg-touser" class="input"></label>
+        </div>
+      </div>
+      <div class="card">
+        <h2>落款映射（所属项目 → 落款）</h2>
+        <div id="cfg-sig" class="sig-list"></div>
+        <button class="btn ghost" id="sig-add">＋ 加一条</button>
+      </div>
+      <div class="actions">
+        <button class="btn ghost" id="cfg-test">发送测试消息</button>
+        <button class="btn solid" id="cfg-save">保存配置</button>
+      </div>
+    </section>
+
+    <!-- 发送记录 -->
+    <section id="page-logs" class="page">
+      <header class="page-head"><h1>发送记录</h1>
+        <p class="sub">logs/sent.jsonl，同日同对象不重复发送</p></header>
+      <div class="toolbar">
+        <select id="log-filter" class="input">
+          <option value="">全部状态</option><option value="ok">成功</option>
+          <option value="fail">失败</option><option value="dry-run">干跑</option>
+        </select>
+      </div>
+      <div class="card table-wrap">
+        <table class="table" id="log-table">
+          <thead><tr><th>时间</th><th>日期</th><th>姓名</th><th>类别</th><th>企业</th><th>状态</th><th>海报</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 手动运行 -->
+    <section id="page-run" class="page">
+      <header class="page-head"><h1>手动运行</h1>
+        <p class="sub">预览命中 → 确认后生成 / 推送（真实推送同样受防重复保护）</p></header>
+      <div class="card">
+        <div class="toolbar">
+          <input type="date" id="run-date" class="input">
+          <button class="btn solid" id="run-preview">预览命中</button>
+          <button class="btn" id="run-dry" disabled>干跑生成</button>
+          <button class="btn danger" id="run-push" disabled>真实推送</button>
+        </div>
+        <div id="run-out" class="console" hidden></div>
+      </div>
+      <div id="run-events"></div>
+    </section>
+  </main>
+</div>
+
+<!-- 编辑弹窗 -->
+<div class="modal-mask" id="modal" hidden>
+  <div class="modal">
+    <h2 id="modal-title">编辑记录</h2>
+    <div class="form-grid" id="modal-form"></div>
+    <div class="actions">
+      <button class="btn ghost" id="modal-cancel">取消</button>
+      <button class="btn solid" id="modal-ok">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+<div class="lightbox" id="lightbox" hidden><img alt="海报预览"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

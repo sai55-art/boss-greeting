@@ -1,0 +1,6 @@
+{
+  "生日": "尊敬的 {姓名} {称谓}：\n\n何其幸运，年岁并进\n在这特别的日子里\n愿您常怀希望与炙热，执着追求成就锦绣韶华\n前路浩浩荡荡，万物皆可期盼\n祝您生日快乐!岁岁安澜!\n\n{项目落款} 敬上",
+  "成立周年": "尊敬的 {姓名} {称谓}：\n\n岁月无声，历经栉风沐雨\n生根发芽，傲然绽放\n值贵司成立{周年数}周年之际\n愿始终获得向上生长的力量，结成万般美好\n周年快乐！感恩相伴！\n\n{项目落款} 敬上",
+  "入园周年": "尊敬的 {姓名} {称谓}：\n\n相遇有缘，相伴有幸。\n与志同道合的人同行，每一步都充满力量。\n感谢您的信赖与支持！\n祝贵司入园{周年数}周年快乐！\n长路共赴星辰，期待未来同书新章！\n\n{项目落款} 敬上",
+  "英文": "Dear {称谓_en}.{姓名},\n\nWarmest congratulations on this special occasion!\nMay your continued success bring even greater achievements.\nWith sincere appreciation for your trust and partnership.\n\n{项目落款}"
+}

@@ -1,0 +1,33 @@
+{
+  "wecom": {
+    "mode": "app",
+    "corpid": "YOUR_CORP_ID",
+    "secret": "YOUR_APP_SECRET",
+    "agentid": 1000002,
+    "touser": "ZhangSan",
+    "webhook": ""
+  },
+  "roster_path": "data/关怀台账.xlsx",
+  "output_dir": "output",
+  "log_dir": "logs",
+  "font": {
+    "regular": "C:/Windows/Fonts/msyh.ttc",
+    "bold": "C:/Windows/Fonts/msyhbd.ttc"
+  },
+  "poster": {
+    "width": 1242,
+    "height": 2760,
+    "backgrounds": {
+      "生日": "templates/背景-生日.png",
+      "成立周年": "templates/背景-成立周年.png",
+      "入园周年": "templates/背景-入园周年.png"
+    }
+  },
+  "project_signature": {
+    "国际金融园": "中天·国际金融园",
+    "联科国际信息产业园": "联科·国际信息产业园",
+    "联科滨海智造港": "联科·滨海智造港",
+    "AI项目": "宏远中天·AI产业中心",
+    "AI": "宏远中天·AI产业中心"
+  }
+}

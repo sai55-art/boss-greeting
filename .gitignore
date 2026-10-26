@@ -1,0 +1,18 @@
+# 真实业务数据不入库（公开仓库）
+data/*
+!data/关怀台账.example.xlsx
+
+# 机密与产物
+config.json
+config.yaml
+output/
+logs/
+_ego/
+_venv/
+.venv/
+_inspect*
+*.pyc
+__pycache__/
+.pytest_cache/
+_preview*
+_shot*
