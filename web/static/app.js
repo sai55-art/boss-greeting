@@ -1,4 +1,4 @@
-/* 关怀助手前端逻辑 */
+﻿/* 关怀助手前端逻辑 */
 "use strict";
 const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
@@ -354,7 +354,7 @@ $("#cfg-save").addEventListener("click", async () => {
 });
 $("#cfg-test").addEventListener("click", async () => {
   toast("正在发送测试消息…");
-  try { await api("/api/config/test", { method: "POST" }); toast("测试消息已发出，请到群里查看"); }
+  try { await api("/api/config/test", { method: "POST" }); toast("测试消息已发出，请到钉钉/群里查看"); }
   catch (err) { toast("发送失败：" + err.message, true); }
 });
 

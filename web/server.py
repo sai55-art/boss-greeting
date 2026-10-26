@@ -23,6 +23,8 @@ import pandas as pd  # noqa: E402
 from PIL import Image  # noqa: E402
 
 from src.copywriting import load_templates, render  # noqa: E402
+from src.dingtalk import (DingTalkError, get_access_token,  # noqa: E402
+                          get_userid_by_mobile, send_work_notification)
 from src.poster import make_poster  # noqa: E402
 from src.roster import load_roster, match_date  # noqa: E402
 from src.wecom import (WeComError, get_token, send_app_message,  # noqa: E402
@@ -225,10 +227,20 @@ def h_config(method, body, qs=None):
 
 
 def h_config_test():
-    cfg = load_cfg()["wecom"]
+    all_cfg = load_cfg()
+    cfg = all_cfg["wecom"]
     text = "【关怀助手】测试消息：通道正常 ✅"
     try:
-        if cfg.get("mode") == "robot":
+        if cfg.get("mode") == "dingtalk":
+            dt = all_cfg.get("dingtalk", {})
+            token = get_access_token(dt["appkey"], dt["appsecret"])
+            userid = dt.get("touser_userid")
+            if not userid and dt.get("to_mobile"):
+                userid = get_userid_by_mobile(token, dt["to_mobile"])
+            if not userid:
+                return 400, {"error": "缺少收件人：请在 config.json 配置 dingtalk.to_mobile 或 touser_userid"}
+            send_work_notification(token, int(dt["agentid"]), userid, text=text)
+        elif cfg.get("mode") == "robot":
             send_robot(cfg["webhook"], text=text)
         else:
             token = get_token(cfg["corpid"], cfg["secret"])
@@ -236,6 +248,10 @@ def h_config_test():
         return 200, {"ok": True}
     except WeComError as exc:
         return 502, {"error": str(exc)}
+    except DingTalkError as exc:
+        return 502, {"error": str(exc)}
+    except KeyError as exc:
+        return 400, {"error": f"配置缺少字段: {exc}"}
     except Exception as exc:  # noqa: BLE001
         return 500, {"error": f"{type(exc).__name__}: {exc}"}
 
