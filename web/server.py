@@ -55,6 +55,34 @@ def save_roster(records: list[dict]) -> None:
     df.to_excel(ROOT / load_cfg()["roster_path"], index=False)
 
 
+def apply_cron_schedule(hhmm: str) -> str:
+    """按 push_time 改写 crontab 中的推送任务（仅 Linux；本地 Windows 跳过）。"""
+    import os
+    import subprocess as sp
+
+    import os
+    import subprocess as sp
+
+    if os.name != "posix":
+        return "非 Linux 环境，跳过 crontab 更新"
+    try:
+        mm, hh = (int(x) for x in hhmm.split(":"))
+    except ValueError:
+        return "时间格式应为 HH:MM"
+    job = (f"{mm} {hh} * * * cd {ROOT} && "
+           ".venv/bin/python -X utf8 -m src.main >> logs/cron.log 2>&1")
+    comment = f"# boss-greeting 每日推送（{hhmm}）"
+    old = sp.run(["crontab", "-l"], capture_output=True, text=True).stdout or ""
+    lines = [l for l in old.splitlines()
+             if "src.main" not in l and "boss-greeting 每日" not in l]
+    lines += [comment, job]
+    p = sp.run(["crontab", "-"], input="\n".join(lines) + "\n",
+               capture_output=True, text=True)
+    if p.returncode:
+        return "crontab 写入失败: " + p.stderr.strip()
+    return "crontab 已更新为每天 " + hhmm
+
+
 def read_logs(limit: int = 200) -> list[dict]:
     path = ROOT / "logs" / "sent.jsonl"
     if not path.exists():
@@ -185,8 +213,14 @@ def h_config(method, body, qs=None):
             for section in ("wecom", "font", "poster", "project_signature"):
                 if section in body:
                     cfg[section] = body[section]
+            cron_msg = ""
+            if body.get("push_time"):
+                old = cfg.get("push_time")
+                cfg["push_time"] = body["push_time"]
+                if body["push_time"] != old:
+                    cron_msg = apply_cron_schedule(body["push_time"])
             save_cfg(cfg)
-        return 200, {"ok": True}
+        return 200, {"ok": True, "cron": cron_msg}
     return 405, {"error": "method not allowed"}
 
 

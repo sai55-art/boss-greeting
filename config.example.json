@@ -17,6 +17,7 @@
   "roster_path": "data/关怀台账.xlsx",
   "output_dir": "output",
   "log_dir": "logs",
+  "push_time": "10:00",
   "font": {
     "regular": "C:/Windows/Fonts/msyh.ttc",
     "bold": "C:/Windows/Fonts/msyhbd.ttc"

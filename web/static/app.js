@@ -305,7 +305,8 @@ $("#tpl-save").addEventListener("click", async () => {
 async function loadConfig() {
   const { config } = await api("/api/config");
   const w = config.wecom || {};
-  $("#cfg-mode").value = w.mode || "robot";
+  $("#cfg-mode").value = w.mode || "dingtalk";
+  $("#cfg-push-time").value = config.push_time || "10:00";
   $("#cfg-webhook").value = w.webhook || "";
   $("#cfg-corpid").value = w.corpid || "";
   $("#cfg-secret").value = w.secret || "";
@@ -343,8 +344,12 @@ $("#cfg-save").addEventListener("click", async () => {
       agentid: $("#cfg-agentid").value.trim() || 0, touser: $("#cfg-touser").value.trim(),
     },
     project_signature: sig,
+    push_time: $("#cfg-push-time").value || "10:00",
   };
-  try { await api("/api/config", { method: "PUT", body }); toast("配置已保存"); }
+  try {
+    const r = await api("/api/config", { method: "PUT", body });
+    toast(r.cron ? "配置已保存，" + r.cron : "配置已保存");
+  }
   catch (err) { toast(err.message, true); }
 });
 $("#cfg-test").addEventListener("click", async () => {

@@ -93,14 +93,18 @@
       <header class="page-head"><h1>推送配置</h1>
         <p class="sub">config.json 在线编辑，密钥不入版本库</p></header>
       <div class="card">
-        <h2>企业微信</h2>
+        <h2>推送通道与时间</h2>
         <div class="form-grid">
-          <label>通道模式<select id="cfg-mode" class="input"><option value="robot">群机器人 webhook</option><option value="app">企微应用单发</option></select></label>
-          <label>Webhook 地址<input id="cfg-webhook" class="input wide" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=…"></label>
-          <label>Corpid<input id="cfg-corpid" class="input"></label>
-          <label>Secret<input id="cfg-secret" class="input" type="password"></label>
-          <label>Agentid<input id="cfg-agentid" class="input"></label>
-          <label>收件人账号（touser）<input id="cfg-touser" class="input"></label>
+          <label>通道模式<select id="cfg-mode" class="input"><option value="dingtalk">钉钉工作通知（单发）</option><option value="robot">企微群机器人 webhook</option><option value="app">企微应用单发</option></select></label>
+          <label>推送时间（每天）<input id="cfg-push-time" class="input" type="time" value="10:00"></label>
+          <label class="full">钉钉 Webhook / 应用参数
+            <input id="cfg-webhook" class="input wide" placeholder="robot 模式：https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=…">
+          </label>
+          <label>Corpid（企微应用）<input id="cfg-corpid" class="input"></label>
+          <label>Secret（企微应用）<input id="cfg-secret" class="input" type="password"></label>
+          <label>Agentid（企微应用）<input id="cfg-agentid" class="input"></label>
+          <label>收件人账号（touser，企微应用）<input id="cfg-touser" class="input"></label>
+          <label class="hint full">推送时间保存后自动更新服务器 crontab（本地 Windows 跳过）。钉钉收件人手机号在 config.json 的 dingtalk.to_mobile 中维护。</label>
         </div>
       </div>
       <div class="card">
