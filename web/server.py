@@ -137,7 +137,10 @@ def h_roster(method, body, qs):
 
 def h_roster_import(body):
     raw = base64.b64decode(body.get("data_b64", ""))
-    df = pd.read_excel(io.BytesIO(raw))
+    try:
+        df = pd.read_excel(io.BytesIO(raw))
+    except Exception:  # noqa: BLE001
+        return 400, {"error": "文件解析失败，请上传有效的 .xlsx 台账文件"}
     df.columns = [str(c).strip() for c in df.columns]
     required = {"类别", "企业名称", "姓名", "节点日期"}
     if not required.issubset(df.columns):
