@@ -99,53 +99,154 @@ async function loadDashboard() {
 
 /* ---------- 台账 ---------- */
 const ROSTER_FIELDS = [
-  ["类别", "select", ["生日", "成立周年", "入园周年"]],
-  ["企业名称", "text"], ["所属项目", "text"], ["姓名", "text"],
-  ["职务", "text"], ["性别", "select", ["男", "女", ""]], ["节点日期", "date"],
+  ["类别", "select", ["生日", "成立周年", "入园周年"], true],
+  ["企业名称", "text", null, true], ["所属项目", "text"], ["姓名", "text", null, true],
+  ["职务", "text"], ["性别", "select", ["男", "女", ""]], ["节点日期", "date", null, true],
 ];
-let rosterCache = [];
+const CATS = ["全部", "生日", "成立周年", "入园周年"];
+const CAT_TAG = { "生日": "tag-birth", "成立周年": "tag-found", "入园周年": "tag-entry" };
+const RS = { q: "", cat: "全部", sortKey: "next", sortDir: 1, page: 1, pageSize: 15, records: [] };
 
-async function loadRoster() {
-  const { records } = await api("/api/roster");
-  rosterCache = records;
-  $("#roster-table tbody").innerHTML = records.length ? records.map((r, i) => `
-    <tr><td>${i + 1}</td><td><span class="badge">${esc(r["类别"])}</span></td>
-    <td>${esc(r["企业名称"])}</td><td>${esc(r["所属项目"])}</td><td><b>${esc(r["姓名"])}</b></td>
-    <td>${esc(r["职务"])}</td><td>${esc(r["性别"])}</td><td>${esc(r["节点日期"])}</td>
-    <td class="ops"><button data-edit="${i}">编辑</button><button class="del" data-del="${i}">删除</button></td></tr>`).join("")
-    : `<tr><td colspan="9"><div class="empty">暂无记录</div></td></tr>`;
+function nextOccur(dateStr) {
+  const m = String(dateStr || "").match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (!m) return { days: 9999, md: "" };
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  let dt = new Date(today.getFullYear(), +m[2] - 1, +m[3]);
+  if (dt < today) dt = new Date(today.getFullYear() + 1, +m[2] - 1, +m[3]);
+  return { days: Math.round((dt - today) / 86400000), md: `${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}` };
 }
-$("#roster-q").addEventListener("input", () => {
-  const q = $("#roster-q").value.trim().toLowerCase();
-  $$("#roster-table tbody tr").forEach((tr, i) => {
-    const r = rosterCache[i];
-    if (!r) return;
-    const hit = !q || Object.values(r).some(v => String(v).toLowerCase().includes(q));
-    tr.style.display = hit ? "" : "none";
+
+function rosterFiltered() {
+  const q = RS.q.toLowerCase();
+  let rows = RS.records.filter(r =>
+    (RS.cat === "全部" || r["类别"] === RS.cat) &&
+    (!q || Object.values(r).some(v => String(v).toLowerCase().includes(q))));
+  const dir = RS.sortDir, key = RS.sortKey;
+  rows = rows.slice().sort((a, b) => {
+    if (key === "next") return (nextOccur(a["节点日期"]).days - nextOccur(b["节点日期"]).days) * dir;
+    return String(a[key] ?? "").localeCompare(String(b[key] ?? ""), "zh") * dir;
   });
+  return rows;
+}
+
+function renderRosterTabs() {
+  const count = c => c === "全部" ? RS.records.length : RS.records.filter(r => r["类别"] === c).length;
+  $("#roster-tabs").innerHTML = CATS.map(c =>
+    `<button class="tab${c === RS.cat ? " active" : ""}" data-cat="${c}">${c}<i>${count(c)}</i></button>`).join("");
+}
+
+function renderRosterTable() {
+  const rows = rosterFiltered();
+  const totalPages = Math.max(1, Math.ceil(rows.length / RS.pageSize));
+  RS.page = Math.min(RS.page, totalPages);
+  const pageRows = rows.slice((RS.page - 1) * RS.pageSize, RS.page * RS.pageSize);
+
+  $("#roster-table tbody").innerHTML = pageRows.length ? pageRows.map((r, i) => {
+    const { days, md } = nextOccur(r["节点日期"]);
+    const dayCls = days === 0 ? "day-today" : days <= 7 ? "day-soon" : "";
+    const dayLabel = days === 0 ? "就是今天" : days === 1 ? "明天" : `${days} 天后`;
+    return `<tr>
+      <td class="dim-cell">${(RS.page - 1) * RS.pageSize + i + 1}</td>
+      <td><span class="cat-tag ${CAT_TAG[r["类别"]] || ""}">${esc(r["类别"])}</span></td>
+      <td>${esc(r["企业名称"])}</td><td>${esc(r["所属项目"])}</td>
+      <td><b>${esc(r["姓名"])}</b></td><td>${esc(r["职务"])}</td><td>${esc(r["性别"])}</td>
+      <td><div class="date-cell">${esc(md)}<span class="day-badge ${dayCls}">${dayLabel}</span></div></td>
+      <td class="ops"><button data-edit="${RS.records.indexOf(r)}">编辑</button><button class="del" data-del="${RS.records.indexOf(r)}">删除</button></td></tr>`;
+  }).join("")
+    : `<tr><td colspan="9"><div class="empty">${RS.records.length ? "没有匹配的记录" : "暂无记录，点击右上角「新增」或「导入 Excel」"}</div></td></tr>`;
+
+  renderRosterPager(rows.length, totalPages);
+}
+
+function renderRosterPager(total, totalPages) {
+  let pages = "";
+  for (let p = 1; p <= totalPages; p++) {
+    if (totalPages > 7 && p > 2 && p < totalPages - 1 && Math.abs(p - RS.page) > 1) {
+      if (!pages.endsWith("<i>…</i>")) pages += "<i>…</i>";
+      continue;
+    }
+    pages += `<button class="pg${p === RS.page ? " active" : ""}" data-p="${p}">${p}</button>`;
+  }
+  $("#roster-pager").innerHTML = total
+    ? `<span class="pg-total">共 ${total} 条</span>
+       <button class="pg" data-p="${RS.page - 1}" ${RS.page <= 1 ? "disabled" : ""}>‹</button>
+       ${pages}
+       <button class="pg" data-p="${RS.page + 1}" ${RS.page >= totalPages ? "disabled" : ""}>›</button>`
+    : "";
+}
+
+async function loadRoster(keepState = true) {
+  $("#roster-table tbody").innerHTML = `<tr><td colspan="9"><div class="empty">加载中…</div></td></tr>`;
+  const { records } = await api("/api/roster");
+  RS.records = records;
+  if (!keepState) Object.assign(RS, { q: "", cat: "全部", sortKey: "next", sortDir: 1, page: 1 });
+  renderRosterTabs(); renderRosterTable();
+}
+
+function renderRoster() { renderRosterTabs(); renderRosterTable(); }
+
+$("#roster-tabs").addEventListener("click", e => {
+  const cat = e.target.dataset.cat;
+  if (!cat) return;
+  RS.cat = cat; RS.page = 1; renderRoster();
 });
+
+let rosterQTimer;
+$("#roster-q").addEventListener("input", () => {
+  clearTimeout(rosterQTimer);
+  rosterQTimer = setTimeout(() => { RS.q = $("#roster-q").value.trim(); RS.page = 1; renderRosterTable(); }, 200);
+});
+
+$("#roster-table thead").addEventListener("click", e => {
+  const th = e.target.closest("th.sortable");
+  if (!th) return;
+  const key = th.dataset.sort;
+  if (RS.sortKey === key) RS.sortDir *= -1;
+  else { RS.sortKey = key; RS.sortDir = 1; }
+  $$("#roster-table thead th.sortable").forEach(t => {
+    t.classList.toggle("active", t.dataset.sort === RS.sortKey);
+    t.classList.toggle("desc", t.dataset.sort === RS.sortKey && RS.sortDir === -1);
+  });
+  renderRosterTable();
+});
+
+$("#roster-pager").addEventListener("click", e => {
+  const p = e.target.dataset.p;
+  if (!p) return;
+  RS.page = +p;
+  renderRosterTable();
+});
+
 $("#roster-table").addEventListener("click", async e => {
   const edit = e.target.dataset.edit, del = e.target.dataset.del;
-  if (edit !== undefined) openRosterModal(rosterCache[+edit], +edit);
-  if (del !== undefined && confirm("确认删除该记录？")) {
+  if (edit !== undefined) openRosterModal(RS.records[+edit], +edit);
+  if (del !== undefined && confirm(`确认删除「${RS.records[+del]["姓名"]}」的记录？`)) {
     await api(`/api/roster?index=${del}`, { method: "DELETE" });
     toast("已删除"); loadRoster();
   }
 });
+
 function openRosterModal(rec, index) {
-  $("#modal-title").textContent = index === undefined ? "新增记录" : "编辑记录";
-  $("#modal-form").innerHTML = ROSTER_FIELDS.map(([name, type, options]) => {
+  $("#modal-title").textContent = index === undefined ? "新增记录" : `编辑记录 · ${rec["姓名"]}`;
+  $("#modal-form").innerHTML = ROSTER_FIELDS.map(([name, type, options, required]) => {
     const val = rec ? (rec[name] ?? "") : "";
+    const req = required ? `<i class="req">*</i>` : "";
     if (type === "select") {
-      return `<label>${name}<select class="input" data-f="${name}">${
-        options.map(o => `<option ${o === val ? "selected" : ""}>${o}</option>`).join("")}</select></label>`;
+      return `<label>${req}${name}<select class="input" data-f="${name}">${
+        options.map(o => `<option ${o === val ? "selected" : ""}>${o || "未填写"}</option>`).join("")}</select></label>`;
     }
-    return `<label>${name}<input class="input" data-f="${name}" type="${type === "date" ? "date" : "text"}" value="${esc(val)}"></label>`;
+    return `<label>${req}${name}<input class="input" data-f="${name}" type="${type === "date" ? "date" : "text"}" value="${esc(val)}"></label>`;
   }).join("");
   $("#modal").hidden = false;
   $("#modal-ok").onclick = async () => {
     const body = {};
-    $$("#modal-form [data-f]").forEach(inp => body[inp.dataset.f] = inp.value);
+    $$("#modal-form [data-f]").forEach(inp => body[inp.dataset.f] = inp.value.trim());
+    const missing = ROSTER_FIELDS.filter(([n, , , req]) => req && !body[n]);
+    if (missing.length) {
+      $$("#modal-form [data-f]").forEach(inp => inp.classList.toggle("input-err",
+        missing.some(([n]) => n === inp.dataset.f)));
+      return toast(`请填写：${missing.map(([n]) => n).join("、")}`, true);
+    }
     try {
       if (index === undefined) await api("/api/roster", { method: "POST", body });
       else await api(`/api/roster?index=${index}`, { method: "PUT", body });
@@ -161,6 +262,7 @@ $("#roster-import").addEventListener("click", () => {
   input.onchange = async () => {
     const file = input.files[0];
     if (!file) return;
+    if (!confirm(`导入将覆盖现有全部 ${RS.records.length} 条记录，且不可恢复，确定继续？`)) return;
     try {
       const data_b64 = await fileToB64(file);
       const r = await api("/api/roster/import", { method: "POST", body: { data_b64 } });

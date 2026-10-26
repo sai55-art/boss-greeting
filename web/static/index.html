@@ -48,18 +48,31 @@
     <section id="page-roster" class="page">
       <header class="page-head"><h1>台账管理</h1>
         <p class="sub">数据源 data/关怀台账.xlsx，修改即时保存</p></header>
+      <div class="tabs" id="roster-tabs"></div>
       <div class="toolbar">
-        <input id="roster-q" class="input" placeholder="搜索姓名 / 企业 / 项目…">
-        <button class="btn" id="roster-add">＋ 新增</button>
-        <button class="btn ghost" id="roster-import">导入 Excel</button>
-        <a class="btn ghost" href="/api/roster/export">导出 Excel</a>
+        <input id="roster-q" class="input search" placeholder="搜索姓名 / 企业 / 项目…">
+        <span class="flex-spacer"></span>
+        <button class="btn solid" id="roster-add">＋ 新增</button>
+        <button class="btn" id="roster-import">导入 Excel</button>
+        <a class="btn" href="/api/roster/export">导出 Excel</a>
       </div>
       <div class="card table-wrap">
         <table class="table" id="roster-table">
-          <thead><tr><th>#</th><th>类别</th><th>企业名称</th><th>所属项目</th><th>姓名</th><th>职务</th><th>性别</th><th>节点日期</th><th></th></tr></thead>
+          <thead><tr>
+            <th style="width:52px">#</th>
+            <th class="sortable" data-sort="类别">类别</th>
+            <th class="sortable" data-sort="企业名称">企业名称</th>
+            <th>所属项目</th>
+            <th class="sortable" data-sort="姓名">姓名</th>
+            <th>职务</th>
+            <th>性别</th>
+            <th class="sortable active" data-sort="next">节点日期</th>
+            <th style="width:96px"></th>
+          </tr></thead>
           <tbody></tbody>
         </table>
       </div>
+      <div class="page-bar" id="roster-pager"></div>
     </section>
 
     <!-- 模板与海报 -->
