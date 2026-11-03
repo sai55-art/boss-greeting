@@ -315,9 +315,10 @@ async function loadConfig() {
   $("#cfg-touser").value = w.touser || "";
   const sig = config.project_signature || {};
   renderSig(sig);
-  renderRcpt(config.recipients || {});
+  renderRcpt(config.recipients || {}, config.recipients_names || {});
 }
-function renderRcpt(rcpt) {
+function renderRcpt(rcpt, names) {
+  names = names || {};
   const rows = [];
   const mk = (k, m, u, def) => `
     <div class="sig-row rcpt-row${def ? " default" : ""}">
@@ -338,6 +339,13 @@ function renderRcpt(rcpt) {
     if (k !== "default" && k !== "cc") rows.push(mk(k, v.to_mobile || "", v.touser_userid || "", false));
   });
   $("#cfg-rcpt").innerHTML = rows.join("");
+  $$("#cfg-rcpt .rcpt-row").forEach(row => {
+    const u = $("[data-rcpt-u]", row) || $("[data-cc-u]", row);
+    if (u && names[u.value]) {
+      u.insertAdjacentHTML("afterend",
+        `<span class="hint" style="align-self:center;white-space:nowrap">👤 ${esc(names[u.value])}</span>`);
+    }
+  });
   $$("#cfg-rcpt .rcpt-row:not(.default) .del").forEach(b => b.onclick = () => b.closest(".rcpt-row").remove());
 }
 $("#rcpt-add").addEventListener("click", () => {

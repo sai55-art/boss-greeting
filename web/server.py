@@ -23,7 +23,7 @@ import pandas as pd  # noqa: E402
 from PIL import Image  # noqa: E402
 
 from src.copywriting import load_templates, render  # noqa: E402
-from src.dingtalk import (DingTalkError, get_access_token,  # noqa: E402
+from src.dingtalk import (DingTalkError, get_access_token, get_user_detail,  # noqa: E402
                           get_userid_by_mobile, send_work_notification)
 from src.poster import make_poster  # noqa: E402
 from src.roster import load_roster, match_date  # noqa: E402
@@ -98,8 +98,44 @@ def read_logs(limit: int = 200) -> list[dict]:
     return list(reversed(out[-limit:]))
 
 
+_DT_CACHE = {"token": "", "ts": 0.0, "names": {}}
+
+
+def _dt_token_cached() -> str:
+    import time as _time
+
+    now = _time.time()
+    if _DT_CACHE["token"] and now - _DT_CACHE["ts"] < 7000:
+        return _DT_CACHE["token"]
+    dt = load_cfg().get("dingtalk", {})
+    if not dt.get("appkey") or "YOUR_" in str(dt.get("appkey", "")):
+        return ""
+    try:
+        token = get_access_token(dt["appkey"], dt["appsecret"])
+    except Exception:  # noqa: BLE001
+        return ""
+    _DT_CACHE["token"] = token
+    _DT_CACHE["ts"] = now
+    return token
+
+
+def dt_user_name(userid: str) -> str:
+    """userid -> 钉钉姓名（带缓存，失败回退原串）。"""
+    if not userid:
+        return ""
+    if userid in _DT_CACHE["names"]:
+        return _DT_CACHE["names"][userid]
+    token = _dt_token_cached()
+    name = ""
+    if token:
+        detail = get_user_detail(token, userid)
+        name = str(detail.get("name") or "")
+    _DT_CACHE["names"][userid] = name
+    return name
+
+
 def resolve_recipients(cfg: dict, project: str) -> list[str]:
-    """按园区关键字解析收件人（返回脱敏展示串）。"""
+    """按园区关键字解析收件人（返回脱敏展示串，userid 自动译名）。"""
     rc = cfg.get("recipients") or {}
     default = rc.get("default") or {}
     matched = [r for k, r in rc.items() if k != "default" and k in (project or "")]
@@ -111,13 +147,13 @@ def resolve_recipients(cfg: dict, project: str) -> list[str]:
         if mob:
             names.append(mob[:3] + "****" + mob[-4:] if len(mob) >= 8 else mob)
         elif uid:
-            names.append(uid)
+            names.append(dt_user_name(uid) or uid)
     cc = rc.get("cc") or {}
     if cc.get("to_mobile"):
         mob = str(cc["to_mobile"])
         names.append(mob[:3] + "****" + mob[-4:] if len(mob) >= 8 else mob)
     elif cc.get("touser_userid"):
-        names.append(str(cc["touser_userid"]))
+        names.append(dt_user_name(str(cc["touser_userid"])) or str(cc["touser_userid"]))
     return names or ["默认"]
 
 
@@ -232,6 +268,12 @@ def h_config(method, body, qs=None):
         cfg = load_cfg()
         if cfg.get("wecom", {}).get("webhook"):
             cfg["wecom"]["webhook_masked"] = cfg["wecom"]["webhook"][:60] + "…"
+        names = {}
+        for r in (cfg.get("recipients") or {}).values():
+            uid = str(r.get("touser_userid") or "")
+            if uid:
+                names[uid] = dt_user_name(uid) or uid
+        cfg["recipients_names"] = names
         return 200, {"config": cfg}
     if method == "PUT":
         with LOCK:

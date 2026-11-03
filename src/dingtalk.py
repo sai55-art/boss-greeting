@@ -42,6 +42,16 @@ def get_userid_by_mobile(token: str, mobile: str) -> str:
     return result["result"]["userid"]
 
 
+def get_user_detail(token: str, userid: str) -> dict:
+    """按 userid 查询用户详情（含姓名），查询失败返回空 dict。"""
+    try:
+        result = _post_json(f"{_OAPI}/topapi/v2/user/get?access_token={token}",
+                            {"userid": userid})
+        return result.get("result") or {}
+    except DingTalkError:
+        return {}
+
+
 def upload_media(token: str, image_path: str | bytes, filename: str = "poster.jpg") -> str:
     data = image_path if isinstance(image_path, bytes) else open(image_path, "rb").read()
     boundary = uuid.uuid4().hex
