@@ -112,6 +112,12 @@ def resolve_recipients(cfg: dict, project: str) -> list[str]:
             names.append(mob[:3] + "****" + mob[-4:] if len(mob) >= 8 else mob)
         elif uid:
             names.append(uid)
+    cc = rc.get("cc") or {}
+    if cc.get("to_mobile"):
+        mob = str(cc["to_mobile"])
+        names.append(mob[:3] + "****" + mob[-4:] if len(mob) >= 8 else mob)
+    elif cc.get("touser_userid"):
+        names.append(str(cc["touser_userid"]))
     return names or ["默认"]
 
 

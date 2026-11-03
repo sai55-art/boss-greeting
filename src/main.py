@@ -116,6 +116,10 @@ def main(argv: list[str] | None = None) -> int:
                 out.append(r)
         return out
 
+    def resolve_cc() -> dict:
+        """抄送人（验收用）：recipients.cc，每次推送同步发一份。"""
+        return (cfg.get("recipients") or {}).get("cc") or {}
+
     def push_once(text: str, out_path: Path, recipients: list[dict]) -> None:
         """按配置的三种通道推送一条（文案 + 海报）。"""
         if mode == "robot":
@@ -123,7 +127,14 @@ def main(argv: list[str] | None = None) -> int:
         elif mode == "dingtalk":
             token = get_access_token(dt_cfg["appkey"], dt_cfg["appsecret"])
             media_id = upload_media(token, out_path, out_path.name)
-            for r in recipients:
+            cc = resolve_cc()
+            send_list, seen = [], set()
+            for r in list(recipients) + ([cc] if cc else []):
+                ident = (r.get("to_mobile", ""), r.get("touser_userid", ""))
+                if ident not in seen and any(ident):
+                    seen.add(ident)
+                    send_list.append(r)
+            for r in send_list:
                 userid = r.get("touser_userid")
                 if not userid and r.get("to_mobile"):
                     userid = get_userid_by_mobile(token, r["to_mobile"])
@@ -148,7 +159,9 @@ def main(argv: list[str] | None = None) -> int:
                     font_cfg, size, out_path)
         key = f"{day}|{ev['name']}|{ev['category']}|{ev['company']}"
         recipients = resolve_recipients(ev["project"])
-        rcpt_desc = ",".join(r.get("to_mobile") or r.get("touser_userid") or "?" for r in recipients)
+        cc = resolve_cc()
+        all_rcpt = recipients + ([cc] if cc else [])
+        rcpt_desc = ",".join(r.get("to_mobile") or r.get("touser_userid") or "?" for r in all_rcpt)
         if key in done:
             print(f"[skip] 今日已发送: {key}")
             continue

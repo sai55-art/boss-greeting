@@ -327,9 +327,15 @@ function renderRcpt(rcpt) {
       <button class="del" type="button" title="删除" ${def ? "disabled" : ""}>×</button>
     </div>`;
   const dflt = rcpt.default || { to_mobile: "", touser_userid: "" };
+  const cc = rcpt.cc || { to_mobile: "", touser_userid: "" };
+  rows.push(`<div class="sig-row rcpt-row default">
+      <input class="input" value="同步抄送（每次推送同时发给你）" disabled>
+      <input class="input" data-cc-m placeholder="你的手机号" value="${esc(cc.to_mobile || "")}">
+      <input class="input" data-cc-u placeholder="userid(可选)" value="${esc(cc.touser_userid || "")}">
+    </div>`);
   rows.push(mk("默认（未命中园区时）", dflt.to_mobile || "", dflt.touser_userid || "", true));
   Object.entries(rcpt).forEach(([k, v]) => {
-    if (k !== "default") rows.push(mk(k, v.to_mobile || "", v.touser_userid || "", false));
+    if (k !== "default" && k !== "cc") rows.push(mk(k, v.to_mobile || "", v.touser_userid || "", false));
   });
   $("#cfg-rcpt").innerHTML = rows.join("");
   $$("#cfg-rcpt .rcpt-row:not(.default) .del").forEach(b => b.onclick = () => b.closest(".rcpt-row").remove());
@@ -367,13 +373,13 @@ $("#cfg-save").addEventListener("click", async () => {
     const k = $("[data-sig-k]", row).value.trim(), v = $("[data-sig-v]", row).value.trim();
     if (k) sig[k] = v;
   });
-  const rcpt = { default: { to_mobile: "", touser_userid: "" } };
+  const rcpt = { default: { to_mobile: "", touser_userid: "" }, cc: { to_mobile: "", touser_userid: "" } };
   $$("#cfg-rcpt .rcpt-row").forEach(row => {
-    const k = $("[data-rcpt-k]", row).value.trim();
-    const m = $("[data-rcpt-m]", row).value.trim();
-    const u = $("[data-rcpt-u]", row).value.trim();
-    if (row.classList.contains("default")) {
-      rcpt.default = { to_mobile: m, touser_userid: u };
+    const k = $("[data-rcpt-k]", row)?.value.trim();
+    const m = $("[data-cc-m]", row)?.value ?? $("[data-rcpt-m]", row)?.value.trim();
+    const u = $("[data-cc-u]", row)?.value ?? $("[data-rcpt-u]", row)?.value.trim();
+    if (row.querySelector("[data-cc-m]")) {
+      rcpt.cc = { to_mobile: m || "", touser_userid: u || "" };
     } else if (k && (m || u)) {
       rcpt[k] = { to_mobile: m, touser_userid: u };
     }
