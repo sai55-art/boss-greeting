@@ -1,4 +1,4 @@
-﻿/* 关怀助手前端逻辑 */
+/* 关怀助手前端逻辑 */
 "use strict";
 const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
@@ -314,7 +314,36 @@ async function loadConfig() {
   $("#cfg-touser").value = w.touser || "";
   const sig = config.project_signature || {};
   renderSig(sig);
+  renderRcpt(config.recipients || {});
 }
+function renderRcpt(rcpt) {
+  const rows = [];
+  const mk = (k, m, u, def) => `
+    <div class="sig-row rcpt-row${def ? " default" : ""}">
+      <input class="input" data-rcpt-k placeholder="项目关键字（默认行留空）" value="${esc(k)}" ${def ? "disabled" : ""}>
+      <input class="input" data-rcpt-m placeholder="负责人手机号" value="${esc(m)}">
+      <input class="input" data-rcpt-u placeholder="userid(可选)" value="${esc(u)}">
+      <button class="del" type="button" title="删除" ${def ? "disabled" : ""}>×</button>
+    </div>`;
+  const dflt = rcpt.default || { to_mobile: "", touser_userid: "" };
+  rows.push(mk("默认（未命中园区时）", dflt.to_mobile || "", dflt.touser_userid || "", true));
+  Object.entries(rcpt).forEach(([k, v]) => {
+    if (k !== "default") rows.push(mk(k, v.to_mobile || "", v.touser_userid || "", false));
+  });
+  $("#cfg-rcpt").innerHTML = rows.join("");
+  $$("#cfg-rcpt .rcpt-row:not(.default) .del").forEach(b => b.onclick = () => b.closest(".rcpt-row").remove());
+}
+$("#rcpt-add").addEventListener("click", () => {
+  const html = document.createElement("div");
+  html.className = "sig-row rcpt-row";
+  html.innerHTML = `
+    <input class="input" data-rcpt-k placeholder="项目关键字">
+    <input class="input" data-rcpt-m placeholder="负责人手机号">
+    <input class="input" data-rcpt-u placeholder="userid(可选)">
+    <button class="del" type="button">×</button>`;
+  $("#cfg-rcpt").appendChild(html);
+  html.querySelector(".del").onclick = e => e.target.closest(".rcpt-row").remove();
+});
 function renderSig(sig) {
   $("#cfg-sig").innerHTML = Object.entries(sig).map(([k, v]) => `
     <div class="sig-row"><input class="input" data-sig-k value="${esc(k)}">
@@ -337,6 +366,17 @@ $("#cfg-save").addEventListener("click", async () => {
     const k = $("[data-sig-k]", row).value.trim(), v = $("[data-sig-v]", row).value.trim();
     if (k) sig[k] = v;
   });
+  const rcpt = { default: { to_mobile: "", touser_userid: "" } };
+  $$("#cfg-rcpt .rcpt-row").forEach(row => {
+    const k = $("[data-rcpt-k]", row).value.trim();
+    const m = $("[data-rcpt-m]", row).value.trim();
+    const u = $("[data-rcpt-u]", row).value.trim();
+    if (row.classList.contains("default")) {
+      rcpt.default = { to_mobile: m, touser_userid: u };
+    } else if (k && (m || u)) {
+      rcpt[k] = { to_mobile: m, touser_userid: u };
+    }
+  });
   const body = {
     wecom: {
       mode: $("#cfg-mode").value, webhook: $("#cfg-webhook").value.trim(),
@@ -344,6 +384,7 @@ $("#cfg-save").addEventListener("click", async () => {
       agentid: $("#cfg-agentid").value.trim() || 0, touser: $("#cfg-touser").value.trim(),
     },
     project_signature: sig,
+    recipients: rcpt,
     push_time: $("#cfg-push-time").value || "10:00",
   };
   try {

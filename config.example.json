@@ -18,6 +18,10 @@
   "output_dir": "output",
   "log_dir": "logs",
   "push_time": "10:00",
+  "recipients": {
+    "default": {"to_mobile": "18439120467", "touser_userid": ""},
+    "联科国际信息产业园": {"to_mobile": "18439120467", "touser_userid": ""}
+  },
   "font": {
     "regular": "C:/Windows/Fonts/msyh.ttc",
     "bold": "C:/Windows/Fonts/msyhbd.ttc"

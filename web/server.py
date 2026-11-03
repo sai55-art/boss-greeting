@@ -98,6 +98,23 @@ def read_logs(limit: int = 200) -> list[dict]:
     return list(reversed(out[-limit:]))
 
 
+def resolve_recipients(cfg: dict, project: str) -> list[str]:
+    """按园区关键字解析收件人（返回脱敏展示串）。"""
+    rc = cfg.get("recipients") or {}
+    default = rc.get("default") or {}
+    matched = [r for k, r in rc.items() if k != "default" and k in (project or "")]
+    chosen = matched or ([default] if default else [])
+    names = []
+    for r in chosen:
+        mob = str(r.get("to_mobile") or "")
+        uid = str(r.get("touser_userid") or "")
+        if mob:
+            names.append(mob[:3] + "****" + mob[-4:] if len(mob) >= 8 else mob)
+        elif uid:
+            names.append(uid)
+    return names or ["默认"]
+
+
 def render_events(day: dt.date, make_images: bool) -> list[dict]:
     cfg = load_cfg()
     events = match_date(load_roster(ROOT / cfg["roster_path"]), day)
@@ -117,6 +134,7 @@ def render_events(day: dt.date, make_images: bool) -> list[dict]:
         out.append({"category": ev["category"], "company": ev["company"],
                     "project": ev["project"], "name": ev["name"],
                     "gender": ev["gender"], "years": ev.get("years"),
+                    "to": ", ".join(resolve_recipients(cfg, ev["project"])),
                     "copy": copy, "poster": "/" + rel if poster.exists() else None})
     return out
 
@@ -212,7 +230,7 @@ def h_config(method, body, qs=None):
     if method == "PUT":
         with LOCK:
             cfg = load_cfg()
-            for section in ("wecom", "font", "poster", "project_signature"):
+            for section in ("wecom", "font", "poster", "project_signature", "recipients"):
                 if section in body:
                     cfg[section] = body[section]
             cron_msg = ""

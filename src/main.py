@@ -92,20 +92,45 @@ def main(argv: list[str] | None = None) -> int:
     if not dry_run and mode == "app":
         token = get_token(wecom_cfg["corpid"], wecom_cfg["secret"])
 
-    def push_once(text: str, out_path: Path) -> None:
+    def resolve_recipients(project: str) -> list[dict]:
+        """按园区关键字匹配收件人（config.recipients），未命中走 default。
+
+        recipients 形如: {"联科国际信息产业园": {"to_mobile": "..."}, "default": {...}}
+        返回去重后的 [{"to_mobile": "...", "touser_userid": "..."}, ...]
+        """
+        rc = cfg.get("recipients") or {}
+        default = rc.get("default") or {
+            "to_mobile": dt_cfg.get("to_mobile", ""),
+            "touser_userid": dt_cfg.get("touser_userid", ""),
+        }
+        matched = []
+        for key, r in rc.items():
+            if key != "default" and key in (project or ""):
+                matched.append(r)
+        chosen = matched or [default]
+        out, seen = [], set()
+        for r in chosen:
+            ident = (r.get("to_mobile", ""), r.get("touser_userid", ""))
+            if ident not in seen and any(ident):
+                seen.add(ident)
+                out.append(r)
+        return out
+
+    def push_once(text: str, out_path: Path, recipients: list[dict]) -> None:
         """按配置的三种通道推送一条（文案 + 海报）。"""
         if mode == "robot":
             send_robot(wecom_cfg["webhook"], text=text, image_path=out_path)
         elif mode == "dingtalk":
             token = get_access_token(dt_cfg["appkey"], dt_cfg["appsecret"])
-            userid = dt_cfg.get("touser_userid")
-            if not userid and dt_cfg.get("to_mobile"):
-                userid = get_userid_by_mobile(token, dt_cfg["to_mobile"])
-            if not userid:
-                raise DingTalkError("缺少收件人配置：touser_userid 或 to_mobile")
             media_id = upload_media(token, out_path, out_path.name)
-            send_work_notification(token, int(dt_cfg["agentid"]), userid, text=text)
-            send_work_notification(token, int(dt_cfg["agentid"]), userid, media_id=media_id)
+            for r in recipients:
+                userid = r.get("touser_userid")
+                if not userid and r.get("to_mobile"):
+                    userid = get_userid_by_mobile(token, r["to_mobile"])
+                if not userid:
+                    raise DingTalkError("收件人缺少 to_mobile / touser_userid")
+                send_work_notification(token, int(dt_cfg["agentid"]), userid, text=text)
+                send_work_notification(token, int(dt_cfg["agentid"]), userid, media_id=media_id)
         else:
             media_id = upload_image(token, out_path, out_path.name)
             send_app_message(token, int(wecom_cfg["agentid"]),
@@ -122,12 +147,14 @@ def main(argv: list[str] | None = None) -> int:
         make_poster(ev, text, pw.get("backgrounds", {}).get(ev["category"]),
                     font_cfg, size, out_path)
         key = f"{day}|{ev['name']}|{ev['category']}|{ev['company']}"
+        recipients = resolve_recipients(ev["project"])
+        rcpt_desc = ",".join(r.get("to_mobile") or r.get("touser_userid") or "?" for r in recipients)
         if key in done:
             print(f"[skip] 今日已发送: {key}")
             continue
 
         if dry_run:
-            print(f"[dry-run] 已生成 {out_path.name}")
+            print(f"[dry-run] 已生成 {out_path.name} -> 收件人 {rcpt_desc}")
             print("-" * 40)
             print(text)
             print("-" * 40)
@@ -135,11 +162,11 @@ def main(argv: list[str] | None = None) -> int:
         else:
             status, err = "ok", ""
             try:
-                push_once(text, out_path)
+                push_once(text, out_path, recipients)
             except (WeComError, DingTalkError) as exc:  # 重试一次
                 time.sleep(3)
                 try:
-                    push_once(text, out_path)
+                    push_once(text, out_path, recipients)
                 except (WeComError, DingTalkError) as exc2:
                     status, err = "fail", str(exc2)
                     failures += 1
