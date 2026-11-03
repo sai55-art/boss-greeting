@@ -53,6 +53,7 @@ $$("nav a").forEach(a => a.addEventListener("click", e => { e.preventDefault(); 
 /* ---------- 公共渲染 ---------- */
 function eventHtml(ev, idx) {
   const years = ev.years ? ` · ${ev.years}周年` : "";
+  const to = ev.to ? ` · 推送给 ${esc(ev.to)}` : "";
   const poster = ev.poster
     ? `<img class="event-poster" src="${esc(ev.poster)}" data-full="${esc(ev.poster)}" alt="海报">`
     : "";
@@ -61,7 +62,7 @@ function eventHtml(ev, idx) {
     <div class="event-body">
       <div class="event-title"><b>${esc(ev.name)}</b>
         <span class="badge">${esc(ev.category)}${years ? " · " + ev.years + "周年" : ""}</span>
-        <small>${esc(ev.company)}｜${esc(ev.project)}</small></div>
+        <small>${esc(ev.company)}｜${esc(ev.project)}${to}</small></div>
       <div class="event-copy">${esc(ev.copy)}</div>
     </div></div>`;
 }
