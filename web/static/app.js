@@ -273,14 +273,24 @@ $("#roster-import").addEventListener("click", () => {
   input.click();
 });
 
-/* ---------- 模板与海报 ---------- */
-const TPL_KEYS = ["生日", "成立周年", "入园周年", "英文"];
+/* ---------- 模板与海报（按园区分组：海报/祝福/核实 三套） ---------- */
+const TPL_SUBS = { 海报: ["生日", "成立周年", "入园周年", "英文"], 祝福: ["生日", "成立周年", "入园周年", "英文"], 核实行: ["生日", "成立周年", "入园周年"] };
+const TPL_HINTS = {
+  海报: "占位符：{姓名} {称谓} {项目落款} {周年数}；英文模板用 {称谓_en}。此文案印在海报上。",
+  祝福: "占位符：{姓名} {周年数}。此文案作为钉钉第 3 条祝福语发送。",
+  核实行: "占位符：{企业名称} {姓名} {月} {日} {周} {周年数} {生日日期} {成立日期}。作为钉钉第 1 条管家核实行发送。",
+};
+let tplAll = {}, tplGroup = "default", tplSub = "海报";
+
 async function loadTemplates() {
-  const { templates } = await api("/api/templates");
-  $("#tpl-grid").innerHTML = TPL_KEYS.map(k => `
-    <div class="tpl-item"><label>${k}模板</label>
-    <textarea class="input" data-tpl="${k}">${esc(templates[k])}</textarea></div>`).join("");
-  $("#bg-grid").innerHTML = TPL_KEYS.slice(0, 3).map(k => `
+  const d = await api("/api/templates");
+  tplAll = d.data;
+  if (!tplAll[tplGroup]) tplGroup = "default";
+  renderTplGroups(); renderTplSub(); renderBg();
+}
+function renderBg() {
+  const cats = ["生日", "成立周年", "入园周年"];
+  $("#bg-grid").innerHTML = cats.map(k => `
     <div class="bg-slot"><img src="/api/bg/${encodeURIComponent(k)}?t=${Date.now()}" alt="${k}底图"
       onerror="this.style.opacity=.25">
       <div class="bg-name">${k}底图</div>
@@ -291,14 +301,55 @@ async function loadTemplates() {
     try {
       const data_b64 = await fileToB64(file);
       await api("/api/poster-bg", { method: "POST", body: { category: inp.dataset.bg, data_b64 } });
-      toast("背景图已更新"); loadTemplates();
+      toast("背景图已更新"); renderBg();
     } catch (err) { toast(err.message, true); }
   }));
 }
+function renderTplGroups() {
+  const names = Object.keys(tplAll);
+  $("#tpl-group-tabs").innerHTML = names.map(g =>
+    `<button class="tab${g === tplGroup ? " active" : ""}" data-g="${esc(g)}">${g === "default" ? "通用" : esc(g)}</button>`).join("")
+    + `<button class="tab" data-g-new="1">＋ 新增园区模板组</button>`;
+}
+function renderTplSub() {
+  $("#tpl-sub-tabs").innerHTML = Object.keys(TPL_SUBS).map(s =>
+    `<button class="tab${s === tplSub ? " active" : ""}" data-s="${s}">${s}文案</button>`).join("");
+  const g = tplAll[tplGroup] || {};
+  const sub = g[tplSub] || {};
+  $("#tpl-hint").textContent = TPL_HINTS[tplSub];
+  $("#tpl-grid").innerHTML = TPL_SUBS[tplSub].map(k => `
+    <div class="tpl-item"><label>${k}</label>
+    <textarea class="input" data-tpl="${k}">${esc(sub[k] || "")}</textarea></div>`).join("");
+}
+$("#tpl-group-tabs").addEventListener("click", async e => {
+  const g = e.target.dataset.g;
+  if (g) { tplGroup = g; tplSub = "海报"; renderTplGroups(); renderTplSub(); return; }
+  if (e.target.id === "tpl-group-add") {
+    const name = prompt("输入新园区名（需与台账「所属项目」一致）：");
+    if (!name || !name.trim()) return;
+    const key = name.trim();
+    if (tplAll[key]) { toast("该园区模板组已存在", true); return; }
+    tplAll[key] = JSON.parse(JSON.stringify(tplAll.default || { 海报: {}, 祝福: {}, 核实: {} }));
+    tplGroup = key; tplSub = "海报";
+    renderTplGroups(); renderTplSub();
+    toast("已基于通用模板创建，编辑后点保存");
+  }
+});
+$("#tpl-sub-tabs").addEventListener("click", e => {
+  const s = e.target.dataset.s;
+  if (!s) return;
+  tplSub = s; renderTplSub();
+});
 $("#tpl-save").addEventListener("click", async () => {
-  const body = {};
-  $$("#tpl-grid [data-tpl]").forEach(t => body[t.dataset.tpl] = t.value);
-  try { await api("/api/templates", { method: "PUT", body }); toast("模板已保存"); }
+  const sub = {};
+  $$("#tpl-grid [data-tpl]").forEach(t => sub[t.dataset.tpl] = t.value);
+  const data = JSON.parse(JSON.stringify(tplAll[tplGroup] || { 海报: {}, 祝福: {}, 核实: {} }));
+  data[tplSub] = sub;
+  try {
+    await api("/api/templates", { method: "PUT", body: { group: tplGroup, data } });
+    tplAll[tplGroup] = data;
+    toast(`已保存 ${tplGroup === "default" ? "通用" : tplGroup} · ${tplSub}文案`);
+  }
   catch (err) { toast(err.message, true); }
 });
 

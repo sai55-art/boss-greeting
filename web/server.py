@@ -327,15 +327,46 @@ def h_config_test():
 
 
 def h_templates(method, body, qs=None):
+    """v3 模板接口：GET ?group=名称 取单组；PUT {group, data} 写单组（可新建园区组）。"""
     path = ROOT / "templates" / "文案模板.json"
+    poster_cats = ("生日", "成立周年", "入园周年", "英文")
+    notice_cats = ("生日", "成立周年", "入园周年")
+
+    def validate(gdata):
+        for key in ("海报", "祝福"):
+            sub = gdata.get(key)
+            if not isinstance(sub, dict):
+                return f"缺少 {key} 子组"
+            for cat in poster_cats:
+                if not str(sub.get(cat, "")).strip():
+                    return f"{key}.{cat} 模板不能为空"
+        notice = gdata.get("核实") or {}
+        for cat in notice_cats:
+            if cat in notice and not str(notice[cat]).strip():
+                return f"核实.{cat} 不能为空"
+        return None
+
     if method == "GET":
-        return 200, {"templates": load_templates(path)}
+        data = load_templates(path)
+        group = (qs.get("group") or ["default"])[0]
+        if group not in data:
+            return 404, {"error": "分组不存在"}
+        return 200, {"groups": list(data), "group": group, "data": data}
     if method == "PUT":
-        for key in CATEGORIES + ["英文"]:
-            if not str(body.get(key, "")).strip():
-                return 400, {"error": f"模板 {key} 不能为空"}
-        data = {k: str(body[k]) for k in CATEGORIES + ["英文"]}
-        path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        group = str(body.get("group", "")).strip()
+        gdata = body.get("data") or {}
+        if not group:
+            return 400, {"error": "缺少 group"}
+        err = validate(gdata)
+        if err:
+            return 400, {"error": err}
+        with LOCK:
+            data = load_templates(path)
+            clean = {"海报": {c: str(gdata["海报"][c]) for c in poster_cats},
+                     "祝福": {c: str(gdata["祝福"][c]) for c in poster_cats},
+                     "核实": {c: str(gdata.get("核实", {}).get(c, "")) for c in notice_cats}}
+            data[group] = clean
+            path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         return 200, {"ok": True}
     return 405, {"error": "method not allowed"}
 

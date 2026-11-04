@@ -78,14 +78,17 @@
     <!-- 模板与海报 -->
     <section id="page-templates" class="page">
       <header class="page-head"><h1>模板与海报</h1>
-        <p class="sub">占位符：{姓名} {称谓} {项目落款} {周年数}；英文模板用 {称谓_en}</p></header>
+        <p class="sub">按园区维护模板组：海报文案（印在海报上）/ 祝福文案（钉钉第 3 条）/ 管家核实行</p></header>
+      <div class="tabs" id="tpl-group-tabs"></div>
+      <div class="tabs sub" id="tpl-sub-tabs"></div>
+      <p class="hint" id="tpl-hint"></p>
       <div class="tpl-grid" id="tpl-grid"></div>
+      <div class="actions"><button class="btn ghost" id="tpl-group-add">＋ 新增园区模板组</button><button class="btn solid" id="tpl-save">保存当前园区模板</button></div>
       <div class="card">
         <h2>海报背景图</h2>
         <p class="hint">上传 png/jpg，自动缩放至 1242×2760。未上传的节点类型沿用已有底图。</p>
         <div class="bg-grid" id="bg-grid"></div>
       </div>
-      <div class="actions"><button class="btn solid" id="tpl-save">保存模板</button></div>
     </section>
 
     <!-- 推送配置 -->
