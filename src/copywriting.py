@@ -17,22 +17,24 @@ def _is_foreign_name(name: str) -> bool:
 
 
 def load_templates(path: str | Path) -> dict:
-    """读取 v2 模板文件；兼容旧版扁平结构（自动归入 default）。"""
+    """读取 v3 模板文件：{项目: {海报:{类别:模板}, 祝福:{...}, 核实:{...}}, default: {...}}"""
     with open(path, encoding="utf-8") as fp:
         data = json.load(fp)
-    if "生日" in data and "default" not in data:  # 旧版扁平
-        english = data.pop("英文", "")
-        data = {"default": {**data, "英文": english}}
     if "default" not in data:
         raise ValueError("文案模板缺少 default 分组")
-    for key in _CATEGORIES:
-        if key not in data["default"]:
-            raise ValueError(f"文案模板 default 缺少 {key}")
+    for group_name, group in data.items():
+        for key in ("海报", "祝福"):
+            if key not in group:
+                raise ValueError(f"文案模板 {group_name} 缺少 {key} 子组")
+            for cat in _CATEGORIES:
+                if cat not in group[key]:
+                    raise ValueError(f"文案模板 {group_name}.{key} 缺少 {cat}")
+        group.setdefault("核实", {})
     return data
 
 
-def templates_for(data: dict, project: str) -> dict[str, str]:
-    """按项目取模板分组：精确匹配项目名，否则 default。"""
+def templates_for(data: dict, project: str) -> dict:
+    """按项目取模板组：精确匹配项目名，否则 default。"""
     return data.get(project) or data["default"]
 
 

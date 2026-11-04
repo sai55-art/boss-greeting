@@ -156,13 +156,14 @@ def main(argv: list[str] | None = None) -> int:
     failures = 0
     for ev in events:
         signature = signatures.get(ev["project"], ev["project"] or "产业中天")
-        tpl = templates_for(templates, ev["project"])
-        text = render(ev, tpl, signature)
-        notice = render_notice(ev, tpl.get("核实"), today)
-        text_parts = ([notice] if notice else []) + [text]
+        group = templates_for(templates, ev["project"])
+        poster_copy = render(ev, group["海报"], signature)   # 海报上印的文案（旧短行版）
+        bless_text = render(ev, group["祝福"], signature)    # 钉钉第 3 条祝福语（新模板）
+        notice = render_notice(ev, group.get("核实"), today)
+        text_parts = ([notice] if notice else []) + [bless_text]
         ftype = TYPE_FILENAME[ev["category"]]
         out_path = out_dir / f"{ev['project']}-{ftype}-{today:%m%d}-{ev['name']}.jpg"
-        make_poster(ev, text, pw.get("backgrounds", {}).get(ev["category"]),
+        make_poster(ev, poster_copy, pw.get("backgrounds", {}).get(ev["category"]),
                     font_cfg, size, out_path)
         key = f"{day}|{ev['name']}|{ev['category']}|{ev['company']}"
         recipients = resolve_recipients(ev["project"])
@@ -178,7 +179,7 @@ def main(argv: list[str] | None = None) -> int:
             print("-" * 40)
             if notice:
                 print(f"【核实行】{notice}")
-            print(text)
+            print(bless_text)
             print("-" * 40)
             status, err = "dry-run", ""
         else:

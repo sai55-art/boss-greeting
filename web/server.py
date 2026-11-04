@@ -164,14 +164,15 @@ def render_events(day: dt.date, make_images: bool) -> list[dict]:
     out = []
     for ev in events:
         sig = cfg.get("project_signature", {}).get(ev["project"], ev["project"] or "产业中天")
-        tpl = templates_for(templates, ev["project"])
-        copy = render(ev, tpl, sig)
-        notice = render_notice(ev, tpl.get("核实"), day)
+        group = templates_for(templates, ev["project"])
+        poster_copy = render(ev, group["海报"], sig)
+        copy = render(ev, group["祝福"], sig)
+        notice = render_notice(ev, group.get("核实"), day)
         ftype = TYPE_FILENAME[ev["category"]]
         rel = f"output/{day.isoformat()}/{ev['project']}-{ftype}-{day:%m%d}-{ev['name']}.jpg"
         poster = ROOT / rel
         if make_images and not poster.exists():
-            make_poster(ev, copy, cfg["poster"]["backgrounds"].get(ev["category"]),
+            make_poster(ev, poster_copy, cfg["poster"]["backgrounds"].get(ev["category"]),
                         cfg.get("font", {}),
                         (int(cfg["poster"]["width"]), int(cfg["poster"]["height"])),
                         poster)
