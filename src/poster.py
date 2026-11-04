@@ -60,16 +60,32 @@ def render_poster(
     body_font = _font(font_cfg.get("regular"), BODY_FONT_SIZE)
     sign_font = _font(font_cfg.get("regular"), SIGN_FONT_SIZE)
 
+    def wrap(text: str, font: ImageFont.FreeTypeFont) -> list[str]:
+        """按像素宽度贪心换行（长段落文案适配海报）。"""
+        max_w = width * 0.84
+        out, cur = [], ""
+        for ch in text:
+            if draw.textlength(cur + ch, font=font) > max_w and cur:
+                out.append(cur)
+                cur = ch
+            else:
+                cur += ch
+        if cur:
+            out.append(cur)
+        return out or [""]
+
     def center_y(text: str, y: int, font: ImageFont.FreeTypeFont) -> None:
         w = draw.textlength(text, font=font)
         draw.text(((width - w) / 2, y), text, font=font, fill=(255, 255, 255))
 
     y = int(height * 0.53)
-    center_y(name_line, y, name_font)
-    y += int(NAME_FONT_SIZE * 1.9)
+    for seg in wrap(name_line, name_font):
+        center_y(seg, y, name_font)
+        y += int(NAME_FONT_SIZE * 1.7)
     for line in body_lines:
-        center_y(line, y, body_font)
-        y += BODY_LINE_GAP
+        for seg in wrap(line, body_font):
+            center_y(seg, y, body_font)
+            y += BODY_LINE_GAP
 
     if has_bg:
         # 底图自带黄色分隔线（约 0.876H），落款画在分隔线下方
@@ -85,7 +101,11 @@ def render_poster(
 def make_poster(event: dict, copy_text: str, background_path: str | None,
                 font_cfg: dict, size: tuple[int, int], out_path: Path) -> Path:
     """按文案首行为称谓行、末段为落款，合成海报并保存。"""
-    lines = [ln for ln in copy_text.splitlines()]
+    import re as _re
+
+    # 海报上不渲染彩色 emoji（钉钉文案保留）；表情代码 [xx] 保留为文字
+    clean = _re.sub(r"[\U0001F000-\U0001FAFF\u2600-\u27BF\u2B00-\u2BFF\uFE0F]", "", copy_text)
+    lines = [ln for ln in clean.splitlines()]
     name_line = lines[0].strip()
     if lines and lines[-1].endswith("敬上"):
         signature = lines[-1].strip()

@@ -22,7 +22,7 @@ sys.path.insert(0, str(ROOT))
 import pandas as pd  # noqa: E402
 from PIL import Image  # noqa: E402
 
-from src.copywriting import load_templates, render  # noqa: E402
+from src.copywriting import load_templates, render, render_notice, templates_for  # noqa: E402
 from src.dingtalk import (DingTalkError, get_access_token, get_user_detail,  # noqa: E402
                           get_userid_by_mobile, send_work_notification)
 from src.poster import make_poster  # noqa: E402
@@ -164,7 +164,9 @@ def render_events(day: dt.date, make_images: bool) -> list[dict]:
     out = []
     for ev in events:
         sig = cfg.get("project_signature", {}).get(ev["project"], ev["project"] or "产业中天")
-        copy = render(ev, templates, sig)
+        tpl = templates_for(templates, ev["project"])
+        copy = render(ev, tpl, sig)
+        notice = render_notice(ev, tpl.get("核实"), day)
         ftype = TYPE_FILENAME[ev["category"]]
         rel = f"output/{day.isoformat()}/{ev['project']}-{ftype}-{day:%m%d}-{ev['name']}.jpg"
         poster = ROOT / rel
@@ -177,6 +179,7 @@ def render_events(day: dt.date, make_images: bool) -> list[dict]:
                     "project": ev["project"], "name": ev["name"],
                     "gender": ev["gender"], "years": ev.get("years"),
                     "to": ", ".join(resolve_recipients(cfg, ev["project"])),
+                    "notice": notice,
                     "copy": copy, "poster": "/" + rel if poster.exists() else None})
     return out
 

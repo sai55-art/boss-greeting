@@ -63,7 +63,7 @@ function eventHtml(ev, idx) {
       <div class="event-title"><b>${esc(ev.name)}</b>
         <span class="badge">${esc(ev.category)}${years ? " · " + ev.years + "周年" : ""}</span>
         <small>${esc(ev.company)}｜${esc(ev.project)}${to}</small></div>
-      <div class="event-copy">${esc(ev.copy)}</div>
+      <div class="event-copy">${ev.notice ? `<div style="color:var(--text3);margin-bottom:6px">【核实】${esc(ev.notice)}</div>` : ""}${esc(ev.copy)}</div>
     </div></div>`;
 }
 

@@ -15,7 +15,7 @@ import sys
 import time
 from pathlib import Path
 
-from .copywriting import load_templates, render
+from .copywriting import load_templates, render, render_notice, templates_for
 from .dingtalk import (DingTalkError, get_access_token, get_userid_by_mobile,
                        send_work_notification, upload_media)
 from .poster import make_poster
@@ -120,10 +120,12 @@ def main(argv: list[str] | None = None) -> int:
         """抄送人（验收用）：recipients.cc，每次推送同步发一份。"""
         return (cfg.get("recipients") or {}).get("cc") or {}
 
-    def push_once(text: str, out_path: Path, recipients: list[dict]) -> None:
-        """按配置的三种通道推送一条（文案 + 海报）。"""
+    def push_once(text_parts: list[str], out_path: Path, recipients: list[dict]) -> None:
+        """按配置的三种通道推送一条：消息顺序 = 核实行 → 海报 → 祝福文案。"""
         if mode == "robot":
-            send_robot(wecom_cfg["webhook"], text=text, image_path=out_path)
+            for part in text_parts:
+                send_robot(wecom_cfg["webhook"], text=part)
+            send_robot(wecom_cfg["webhook"], image_path=out_path)
         elif mode == "dingtalk":
             token = get_access_token(dt_cfg["appkey"], dt_cfg["appsecret"])
             media_id = upload_media(token, out_path, out_path.name)
@@ -140,19 +142,24 @@ def main(argv: list[str] | None = None) -> int:
                     userid = get_userid_by_mobile(token, r["to_mobile"])
                 if not userid:
                     raise DingTalkError("收件人缺少 to_mobile / touser_userid")
-                send_work_notification(token, int(dt_cfg["agentid"]), userid, text=text)
+                for part in text_parts:
+                    send_work_notification(token, int(dt_cfg["agentid"]), userid, text=part)
                 send_work_notification(token, int(dt_cfg["agentid"]), userid, media_id=media_id)
         else:
+            for part in text_parts:
+                send_app_message(token, int(wecom_cfg["agentid"]),
+                                 wecom_cfg["touser"], text=part)
             media_id = upload_image(token, out_path, out_path.name)
-            send_app_message(token, int(wecom_cfg["agentid"]),
-                             wecom_cfg["touser"], text=text)
             send_app_message(token, int(wecom_cfg["agentid"]),
                              wecom_cfg["touser"], media_id=media_id)
 
     failures = 0
     for ev in events:
         signature = signatures.get(ev["project"], ev["project"] or "产业中天")
-        text = render(ev, templates, signature)
+        tpl = templates_for(templates, ev["project"])
+        text = render(ev, tpl, signature)
+        notice = render_notice(ev, tpl.get("核实"), today)
+        text_parts = ([notice] if notice else []) + [text]
         ftype = TYPE_FILENAME[ev["category"]]
         out_path = out_dir / f"{ev['project']}-{ftype}-{today:%m%d}-{ev['name']}.jpg"
         make_poster(ev, text, pw.get("backgrounds", {}).get(ev["category"]),
@@ -169,17 +176,19 @@ def main(argv: list[str] | None = None) -> int:
         if dry_run:
             print(f"[dry-run] 已生成 {out_path.name} -> 收件人 {rcpt_desc}")
             print("-" * 40)
+            if notice:
+                print(f"【核实行】{notice}")
             print(text)
             print("-" * 40)
             status, err = "dry-run", ""
         else:
             status, err = "ok", ""
             try:
-                push_once(text, out_path, recipients)
+                push_once(text_parts, out_path, recipients)
             except (WeComError, DingTalkError) as exc:  # 重试一次
                 time.sleep(3)
                 try:
-                    push_once(text, out_path, recipients)
+                    push_once(text_parts, out_path, recipients)
                 except (WeComError, DingTalkError) as exc2:
                     status, err = "fail", str(exc2)
                     failures += 1
