@@ -30,6 +30,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="老板生日/周年关怀推送")
     p.add_argument("--config", default=str(ROOT / "config.json"))
     p.add_argument("--date", default=None, help="YYYY-MM-DD，默认今天")
+    p.add_argument("--week", action="store_true", help="推送下周一至下周日的所有节点")
     p.add_argument("--dry-run", action="store_true", help="只生成，不推送")
     p.add_argument("--force", action="store_true", help="忽略防重复记录")
     return p.parse_args(argv)
@@ -41,7 +42,7 @@ def log_line(log_dir: Path, payload: dict) -> None:
         fp.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
 
-def sent_keys(log_dir: Path, day: str) -> set[str]:
+def sent_keys(log_dir: Path, day: str | None = None) -> set[str]:
     path = log_dir / "sent.jsonl"
     if not path.exists():
         return set()
@@ -51,9 +52,19 @@ def sent_keys(log_dir: Path, day: str) -> set[str]:
             rec = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if rec.get("date") == day and rec.get("status") == "ok":
+        if rec.get("status") == "ok" and (day is None or rec.get("date") == day):
             keys.add(rec["key"])
     return keys
+
+
+def get_next_week_range(today: dt.date) -> tuple[dt.date, dt.date]:
+    """返回下周一至下周日的日期范围（7 天）。"""
+    days_ahead = 7 - today.weekday()  # Monday=0, Friday=4
+    if days_ahead == 0:
+        days_ahead = 7
+    start = today + dt.timedelta(days=days_ahead)
+    end = start + dt.timedelta(days=6)
+    return start, end
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -66,10 +77,23 @@ def main(argv: list[str] | None = None) -> int:
 
     today = dt.date.fromisoformat(args.date) if args.date else dt.date.today()
     day = today.isoformat()
-    events = match_date(load_roster(ROOT / cfg["roster_path"]), today)
-    if not events:
-        print(f"[info] {day} 无命中节点，结束")
-        return 0
+
+    if args.week:
+        week_start, week_end = get_next_week_range(today)
+        records = load_roster(ROOT / cfg["roster_path"])
+        events = []
+        for d in (week_start + dt.timedelta(days=i) for i in range(7)):
+            events.extend(match_date(records, d))
+        events.sort(key=lambda e: (e["date"], {"生日": 0, "成立周年": 1, "入园周年": 2}.get(e["category"], 0)))
+        if not events:
+            print(f"[info] 下周（{week_start} ~ {week_end}）无命中节点，结束")
+            return 0
+        print(f"[info] --week 模式：下周 {week_start} ~ {week_end}，共 {len(events)} 条")
+    else:
+        events = match_date(load_roster(ROOT / cfg["roster_path"]), today)
+        if not events:
+            print(f"[info] {day} 无命中节点，结束")
+            return 0
 
     templates = load_templates(ROOT / "templates" / "文案模板.json")
     signatures = cfg.get("project_signature", {})
@@ -78,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
     size = (int(pw.get("width", 1242)), int(pw.get("height", 2760)))
     out_dir = ROOT / cfg.get("output_dir", "output") / day
     log_dir = ROOT / cfg.get("log_dir", "logs")
-    done = set() if args.force else sent_keys(log_dir, day)
+    done = set() if args.force else sent_keys(log_dir)
 
     wecom_cfg = cfg.get("wecom", {})
     dt_cfg = cfg.get("dingtalk", {})
@@ -159,10 +183,11 @@ def main(argv: list[str] | None = None) -> int:
         group = templates_for(templates, ev["project"])
         poster_copy = render(ev, group["海报"], signature)   # 海报上印的文案（旧短行版）
         bless_text = render(ev, group["祝福"], signature)    # 钉钉第 3 条祝福语（新模板）
-        notice = render_notice(ev, group.get("核实"), today)
+        notice = render_notice(ev, group.get("核实"), ev["date"])
         text_parts = ([notice] if notice else []) + [bless_text]
         ftype = TYPE_FILENAME[ev["category"]]
-        out_path = out_dir / f"{ev['project']}-{ftype}-{today:%m%d}-{ev['name']}.jpg"
+        ev_md = ev["date"].strftime("%m%d")
+        out_path = out_dir / f"{ev['project']}-{ftype}-{ev_md}-{ev['name']}.jpg"
         make_poster(ev, poster_copy, pw.get("backgrounds", {}).get(ev["category"]),
                     font_cfg, size, out_path)
         key = f"{day}|{ev['name']}|{ev['category']}|{ev['company']}"
