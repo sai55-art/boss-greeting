@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>boss-greeting 制作思路流程</title>
+<style>
+:root {
+  --bg: #f5f6f8; --panel: #fff; --border: #e5e6eb;
+  --text: #1d2129; --text2: #4e5969; --text3: #86909c;
+  --accent: #d46b08; --accent-light: #fff3e8;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font: 14px/1.8 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); }
+.wrap { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { font-size: 26px; margin-bottom: 8px; }
+.sub { color: var(--text3); margin-bottom: 36px; }
+.step { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 24px 28px; margin-bottom: 20px; }
+.step-num { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 600; font-size: 14px; margin-right: 10px; vertical-align: middle; }
+.step-title { font-size: 17px; font-weight: 600; vertical-align: middle; }
+.step-desc { color: var(--text2); margin-top: 12px; }
+.step-detail { margin-top: 10px; padding: 14px 16px; background: #f9fafb; border-radius: 8px; font-size: 13px; color: var(--text2); }
+.step-detail b { color: var(--accent); }
+.tag { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 12px; margin: 2px 4px 2px 0; background: var(--accent-light); color: var(--accent); border: 1px solid #f0d0b0; }
+.arrow { text-align: center; font-size: 22px; color: var(--text3); margin: -8px 0; }
+.flow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.flow-item { padding: 8px 14px; background: var(--accent-light); border-radius: 6px; font-size: 13px; color: var(--accent); font-weight: 500; }
+.flow-arrow { align-self: center; color: var(--text3); }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.grid .cell { background: #f9fafb; border-radius: 8px; padding: 12px 14px; }
+.cell-t { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+.cell-d { font-size: 12.5px; color: var(--text3); }
+.prompts { margin-top: 20px; background: #1d2129; border-radius: 10px; padding: 20px 24px; color: #a9d7a3; font-size: 12.5px; line-height: 2; font-family: Consolas, monospace; }
+.prompts b { color: #fff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>如何用 AI 对话制作一套自动推送系统</h1>
+<p class="sub">从需求描述到生产上线，全程通过自然语言对话完成，不需要写一行代码</p>
+
+<!-- 流程总览 -->
+<div class="step">
+  <div class="step-num">1</div><span class="step-title">需求梳理</span>
+  <div class="step-desc">用大白话描述你要做什么，AI 会追问关键细节直到需求清晰。</div>
+  <div class="step-detail">
+    我只说了一句：<b>"我准备做一个新项目，每天根据生日的老板生成模板文案和海报，推送给指定的人"</b>。<br>
+    AI 追问了：数据格式？推送到哪？谁接收？定时时间？——每个回答一轮对话就搞定。
+  </div>
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="step">
+  <div class="step-num">2</div><span class="step-title">设计方案确认</span>
+  <div class="step-desc">AI 给出架构方案 + 技术选型，我确认后它写设计文档存档。</div>
+  <div class="flow">
+    <span class="flow-item">Excel 台账</span><span class="flow-arrow">→</span>
+    <span class="flow-item">Python 脚本</span><span class="flow-arrow">→</span>
+    <span class="flow-item">模板文案</span><span class="flow-arrow">→</span>
+    <span class="flow-item">Pillow 海报</span><span class="flow-arrow">→</span>
+    <span class="flow-item">钉钉推送</span>
+  </div>
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="step">
+  <div class="step-num">3</div><span class="step-title">数据准备</span>
+  <div class="step-desc">把现有的 Excel 丢给 AI，它写解析脚本自动导入台账、处理格式差异、去重、跳过坏行。</div>
+  <div class="step-detail">
+    联科给的原始表格很乱（生日用 Excel 序列号、有的只写了"阳历11.16"、同一人多行重复），<br>
+    AI 写了 80 行脚本一次性解决，我只需要说 <b>"把联科的数据录进去"</b>。
+  </div>
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="step">
+  <div class="step-num">4</div><span class="step-title">核心功能迭代</span>
+  <div class="step-desc">每说一个需求，AI 就实现一个功能并部署。全程我做的事只有：提需求、看结果、说"可以"或"不对"。</div>
+  <div class="grid">
+    <div class="cell"><div class="cell-t">模板文案</div><div class="cell-d">粘贴一段话给 AI，它写成 JSON 模板</div></div>
+    <div class="cell"><div class="cell-t">按园区路由</div><div class="cell-d">"联科发给龙银燕"→ 自动配好</div></div>
+    <div class="cell"><div class="cell-t">抄送验收</div><div class="cell-d">"推送同步给我"→ 加 cc 机制</div></div>
+    <div class="cell"><div class="cell-t">每周推送</div><div class="cell-d">"改成每周五推下周"→ 改 cron</div></div>
+  </div>
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="step">
+  <div class="step-num">5</div><span class="step-title">管理后台</span>
+  <div class="step-desc">一句话："做一个管理配置前端，可以向我提问"——AI 问了 4 个问题（功能范围/技术形态/登录方式/视觉风格），然后直接交付 6 页面的后台。</div>
+  <div class="flow">
+    <span class="flow-item">仪表盘</span><span class="flow-item">台账管理</span><span class="flow-item">模板编辑</span><span class="flow-item">推送配置</span><span class="flow-item">发送记录</span><span class="flow-item">手动运行</span>
+  </div>
+  <div class="step-detail">零第三方依赖，纯 Python 标准库 HTTP 服务 + 原生 JS 单页。有 bug AI 自己截图定位修复。</div>
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="step">
+  <div class="step-num">6</div><span class="step-title">测试与部署</span>
+  <div class="step-desc">AI 自己写测试用例并跑通；部署到服务器、配 crontab、验证端到端推送，全程不需要人工介入。</div>
+  <div class="step-detail">
+    最终测试结果：<b>单元 7/7 · API 24/24 · 浏览器 UI 模拟 13/13</b> 全过。<br>
+    部署 = AI 写好代码 → scp 到服务器 → 跑一遍 dry-run 确认 → 真实推送验证 → 改 crontab → 收工。
+  </div>
+</div>
+
+<div class="arrow">↓</div>
+
+<div class="step">
+  <div class="step-num">7</div><span class="step-title">持续维护</span>
+  <div class="step-desc">上线后的日常操作全部通过对话或管理后台完成：</div>
+  <div class="step-detail">
+    换负责人 → 后台改个手机号<br>
+    新园区接入 → 发我数据文件 + 后台加一行路由<br>
+    改文案 → 后台模板页直接编辑保存<br>
+    补发某天 → 后台手动运行页选日期点推送
+  </div>
+</div>
+
+<!-- AI 提示词参考 -->
+<div class="prompts">
+  <b>实际对话提示词示例（我说的原话）：</b><br><br>
+  "我准备做一个新项目，大致流程如下：①我给你以往的数据 ②每天10点根据生日生成模板文案和海报发给指定的人 ③指定的人再手动发送"<br><br>
+  "把后台企业家的相关数据清除，换成联科的数据。后续其他产业园会相继把数据交给我。针对不同的园区，设置不同的负责人"<br><br>
+  "所有的推送都要同步给我的账号，作为一次推送，这样我可以检查是否推送成功"<br><br>
+  "每周五推送下周一至下周日的，说一下你的计划"<br><br>
+  "做一个管理配置的前端，你可以向我提问来考虑有哪些页面和功能"<br><br>
+  "帮我配置一下 联科是龙银燕"
+</div>
+
+</div>
+</body>
+</html>
