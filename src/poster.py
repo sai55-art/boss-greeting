@@ -10,6 +10,8 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
+from .emoji_map import to_emoji
+
 BODY_LINE_GAP = 76
 BODY_FONT_SIZE = 44
 NAME_FONT_SIZE = 62
@@ -164,6 +166,8 @@ def render_poster(name_line: str, body_lines: list[str], signature: str,
 def make_poster(event: dict, copy_text: str, background_path: str | None,
                 font_cfg: dict, size: tuple[int, int], out_path: Path) -> Path:
     """按文案首行为称谓行、末段为落款，合成海报并保存。"""
+    # 微信表情代码（[蛋糕]/[玫瑰]…）转成真正的 emoji 字形再绘制
+    copy_text = to_emoji(copy_text)
     lines = [ln for ln in copy_text.splitlines()]
     name_line = lines[0].strip()
     if lines and lines[-1].endswith("敬上"):

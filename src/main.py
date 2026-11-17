@@ -78,19 +78,26 @@ def main(argv: list[str] | None = None) -> int:
     today = dt.date.fromisoformat(args.date) if args.date else dt.date.today()
     day = today.isoformat()
 
-    if args.week:
+    # 频率优先级：--week 参数 > --date 参数 > 配置 push_mode（默认 daily）
+    want_week = args.week or (not args.date and cfg.get("push_mode") == "weekly")
+
+    if want_week:
         week_start, week_end = get_next_week_range(today)
         records = load_roster(ROOT / cfg["roster_path"])
         events = []
         for d in (week_start + dt.timedelta(days=i) for i in range(7)):
-            events.extend(match_date(records, d))
-        events.sort(key=lambda e: (e["date"], {"生日": 0, "成立周年": 1, "入园周年": 2}.get(e["category"], 0)))
+            for ev in match_date(records, d):
+                ev["occur_date"] = d          # 本次触发的日期（决定星期与海报日期）
+                events.append(ev)
+        events.sort(key=lambda e: (e["occur_date"], {"生日": 0, "成立周年": 1, "入园周年": 2}.get(e["category"], 0)))
         if not events:
             print(f"[info] 下周（{week_start} ~ {week_end}）无命中节点，结束")
             return 0
-        print(f"[info] --week 模式：下周 {week_start} ~ {week_end}，共 {len(events)} 条")
+        print(f"[info] 周模式：下周 {week_start} ~ {week_end}，共 {len(events)} 条")
     else:
         events = match_date(load_roster(ROOT / cfg["roster_path"]), today)
+        for ev in events:
+            ev["occur_date"] = today
         if not events:
             print(f"[info] {day} 无命中节点，结束")
             return 0
@@ -183,14 +190,16 @@ def main(argv: list[str] | None = None) -> int:
         group = templates_for(templates, ev["project"])
         poster_copy = render(ev, group["海报"], signature)   # 海报上印的文案（旧短行版）
         bless_text = render(ev, group["祝福"], signature)    # 钉钉第 3 条祝福语（新模板）
-        notice = render_notice(ev, group.get("核实"), ev["date"])
+        occur = ev["occur_date"]
+        notice = render_notice(ev, group.get("核实"), occur)
         text_parts = ([notice] if notice else []) + [bless_text]
         ftype = TYPE_FILENAME[ev["category"]]
-        ev_md = ev["date"].strftime("%m%d")
+        ev_md = occur.strftime("%m%d")
         out_path = out_dir / f"{ev['project']}-{ftype}-{ev_md}-{ev['name']}.jpg"
         make_poster(ev, poster_copy, pw.get("backgrounds", {}).get(ev["category"]),
                     font_cfg, size, out_path)
-        key = f"{day}|{ev['name']}|{ev['category']}|{ev['company']}"
+        # key 按「事件日期」而非运行日期，切到每日/每周模式后不会重复推送同一节点
+        key = f"{occur.isoformat()}|{ev['name']}|{ev['category']}|{ev['company']}"
         recipients = resolve_recipients(ev["project"])
         cc = resolve_cc()
         all_rcpt = recipients + ([cc] if cc else [])

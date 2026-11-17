@@ -69,8 +69,12 @@ def render_notice(event: dict, notice_tpl: dict[str, str] | None, today: date) -
         return ""
     tpl = notice_tpl[event["category"]]
     birth = event.get("date")
-    birth_str = f"{birth.year}年{birth.month}月{birth.day}日" if birth else ""
-    iso_str = birth.isoformat() if birth else ""
+    if birth and birth.year <= 1900:
+        # 源数据只提供月日（导入时以 1900 占位），不臆造年份
+        birth_str = f"{birth.month}月{birth.day}日"
+    else:
+        birth_str = f"{birth.year}年{birth.month}月{birth.day}日" if birth else ""
+    iso_str = birth.isoformat() if birth and birth.year > 1900 else ""
     mapping = {
         "企业名称": event.get("company", ""),
         "姓名": event.get("name", ""),

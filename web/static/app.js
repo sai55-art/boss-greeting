@@ -359,6 +359,7 @@ async function loadConfig() {
   const w = config.wecom || {};
   $("#cfg-mode").value = w.mode || "dingtalk";
   $("#cfg-push-time").value = config.push_time || "10:00";
+  $("#cfg-push-mode").value = config.push_mode || "daily";
   $("#cfg-webhook").value = w.webhook || "";
   $("#cfg-corpid").value = w.corpid || "";
   $("#cfg-secret").value = w.secret || "";
@@ -452,6 +453,7 @@ $("#cfg-save").addEventListener("click", async () => {
     project_signature: sig,
     recipients: rcpt,
     push_time: $("#cfg-push-time").value || "10:00",
+    push_mode: $("#cfg-push-mode").value || "daily",
   };
   try {
     const r = await api("/api/config", { method: "PUT", body });

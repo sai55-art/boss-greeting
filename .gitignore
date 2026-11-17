@@ -16,3 +16,6 @@ __pycache__/
 .pytest_cache/
 _preview*
 _shot*
+关怀台账导出.xlsx
+推送清单*.docx
+_shot*.png

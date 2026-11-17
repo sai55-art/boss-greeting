@@ -99,7 +99,8 @@
         <h2>推送通道与时间</h2>
         <div class="form-grid">
           <label>通道模式<select id="cfg-mode" class="input"><option value="dingtalk">钉钉工作通知（单发）</option><option value="robot">企微群机器人 webhook</option><option value="app">企微应用单发</option></select></label>
-          <label>推送时间（每天）<input id="cfg-push-time" class="input" type="time" value="10:00"></label>
+          <label>推送频率<select id="cfg-push-mode" class="input"><option value="daily">每天（推送当天节点）</option><option value="weekly">每周五（推送下周一至下周日）</option></select></label>
+          <label>推送时间<input id="cfg-push-time" class="input" type="time" value="10:00"></label>
           <label class="full">钉钉 Webhook / 应用参数
             <input id="cfg-webhook" class="input wide" placeholder="robot 模式：https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=…">
           </label>
